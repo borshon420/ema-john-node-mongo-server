@@ -16,7 +16,47 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
 async function run(){
     try {
         await client.connect()
-        console.log('database connect successfully')
+        const database = client.db('online_shop');
+        const productCollection = database.collection('products');
+        const orderCollection = database.collection('orders');
+
+        //GET Products API
+        app.get('/products', async(req, res)=> {
+            console.log(req.query)
+            const cursor = productCollection.find({});
+            const page = req.query.page;
+            const size = parseInt(req.query.size);
+            let products;
+            const count = await cursor.count();
+            if(page){
+                products = await cursor.skip(page * size).limit(size).toArray();
+            }
+            else{
+                products = await cursor.toArray();
+            }
+            
+            res.send({
+                count,
+                products
+            });
+        });
+
+        //USE post to get data by keys
+        app.post('/products/byKeys', async(req, res)=> {
+            console.log(req.body)
+            const keys = req.body;
+            const query = {key: {$in: keys}};
+            const products = await productCollection.find(query).toArray() 
+            res.send(products)
+        });
+
+        //ADD orders API
+        app.post('/orders', async(req, res)=> {
+            const order = req.body;
+            const result = await orderCollection.insertOne(order);
+            res.json(result);
+        })
+
     }
     finally {
         // await client.close();
